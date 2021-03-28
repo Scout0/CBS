@@ -99,7 +99,7 @@ class Environment(object):
         self.make_agent_dict()
 
         self.constraints = Constraints()
-        self.constraint_dict = {}
+        self.constraint = {}
 
         self.a_star = AStar(self)
 
@@ -108,67 +108,67 @@ class Environment(object):
 
         # Wait action
         n = State(state.time + 1, state.location)
-        if self.state_valid(n):
+        if self.valid_state(n):
             neighbors.append(n)
         # Up action
         n = State(state.time + 1, Location(state.location.x, state.location.y+1))
-        if self.state_valid(n) and self.transition_valid(state, n):
+        if self.valid_state(n) and self.valid_transition(state, n):
             neighbors.append(n)
         # Down action
         n = State(state.time + 1, Location(state.location.x, state.location.y-1))
-        if self.state_valid(n) and self.transition_valid(state, n):
+        if self.valid_state(n) and self.valid_transition(state, n):
             neighbors.append(n)
         # Left action
         n = State(state.time + 1, Location(state.location.x-1, state.location.y))
-        if self.state_valid(n) and self.transition_valid(state, n):
+        if self.valid_state(n) and self.valid_transition(state, n):
             neighbors.append(n)
         # Right action
         n = State(state.time + 1, Location(state.location.x+1, state.location.y))
-        if self.state_valid(n) and self.transition_valid(state, n):
+        if self.valid_state(n) and self.valid_transition(state, n):
             neighbors.append(n)
         return neighbors
 
 
     def first_conflict(self, solution):
-        max_t = max([len(plan) for plan in solution.values()])
-        result = Conflict()
-        for t in range(max_t):
+        maximum_t = max([len(plan) for plan in solution.values()])
+        res = Conflict()
+        for t in range(maximum_t):
             for agent_1, agent_2 in combinations(solution.keys(), 2):
-                state_1 = self.get_state(agent_1, solution, t)
-                state_2 = self.get_state(agent_2, solution, t)
+                state_1 = self.find_state(agent_1, solution, t)
+                state_2 = self.find_state(agent_2, solution, t)
                 if state_1.is_equal_except_time(state_2):
-                    result.time = t
-                    result.type = Conflict.VERTEX
-                    result.location_1 = state_1.location
-                    result.agent_1 = agent_1
-                    result.agent_2 = agent_2
-                    return result
+                    res.time = t
+                    res.type = Conflict.VERTEX
+                    res.location_1 = state_1.location
+                    res.agent_1 = agent_1
+                    res.agent_2 = agent_2
+                    return res
 
             for agent_1, agent_2 in combinations(solution.keys(), 2):
-                state_1a = self.get_state(agent_1, solution, t)
-                state_1b = self.get_state(agent_1, solution, t+1)
+                state_1a = self.find_state(agent_1, solution, t)
+                state_1b = self.find_state(agent_1, solution, t+1)
 
-                state_2a = self.get_state(agent_2, solution, t)
-                state_2b = self.get_state(agent_2, solution, t+1)
+                state_2a = self.find_state(agent_2, solution, t)
+                state_2b = self.find_state(agent_2, solution, t+1)
 
                 if state_1a.is_equal_except_time(state_2b) and state_1b.is_equal_except_time(state_2a):
-                    result.time = t
-                    result.type = Conflict.EDGE
-                    result.agent_1 = agent_1
-                    result.agent_2 = agent_2
-                    result.location_1 = state_1a.location
-                    result.location_2 = state_1b.location
-                    return result
+                    res.time = t
+                    res.type = Conflict.EDGE
+                    res.agent_1 = agent_1
+                    res.agent_2 = agent_2
+                    res.location_1 = state_1a.location
+                    res.location_2 = state_1b.location
+                    return res
         return False
 
-    def create_constraints_from_conflict(self, conflict):
-        constraint_dict = {}
+    def create_constraints(self, conflict):
+        constraint = {}
         if conflict.type == Conflict.VERTEX:
             v_constraint = VertexConstraint(conflict.time, conflict.location_1)
             constraint = Constraints()
             constraint.vertex_constraints |= {v_constraint}
-            constraint_dict[conflict.agent_1] = constraint
-            constraint_dict[conflict.agent_2] = constraint
+            constraint[conflict.agent_1] = constraint
+            constraint[conflict.agent_2] = constraint
 
         elif conflict.type == Conflict.EDGE:
             constraint1 = Constraints()
@@ -180,36 +180,36 @@ class Environment(object):
             constraint1.edge_constraints |= {e_constraint1}
             constraint2.edge_constraints |= {e_constraint2}
 
-            constraint_dict[conflict.agent_1] = constraint1
-            constraint_dict[conflict.agent_2] = constraint2
+            constraint[conflict.agent_1] = constraint1
+            constraint[conflict.agent_2] = constraint2
 
-        return constraint_dict
+        return constraint
 
-    def get_state(self, agent_name, solution, t):
-        if t < len(solution[agent_name]):
-            return solution[agent_name][t]
+    def find_state(self, name, solution, t):
+        if t < len(solution[name]):
+            return solution[name][t]
         else:
-            return solution[agent_name][-1]
+            return solution[name][-1]
 
-    def state_valid(self, state):
+    def valid_state(self, state):
         return state.location.x >= 0 and state.location.x < self.dimension[0] \
             and state.location.y >= 0 and state.location.y < self.dimension[1] \
             and VertexConstraint(state.time, state.location) not in self.constraints.vertex_constraints \
             and (state.location.x, state.location.y) not in self.obstacles
 
-    def transition_valid(self, state_1, state_2):
+    def valid_transition(self, state_1, state_2):
         return EdgeConstraint(state_1.time, state_1.location, state_2.location) not in self.constraints.edge_constraints
 
-    def is_solution(self, agent_name):
+    def is_solution(self, name):
         pass
 
-    def admissible_heuristic(self, state, agent_name):
-        goal = self.agent_dict[agent_name]["goal"]
+    def admissible_heuristic(self, state, name):
+        goal = self.agent_dict[name]["goal"]
         return fabs(state.location.x - goal.location.x) + fabs(state.location.y - goal.location.y)
 
 
-    def is_at_goal(self, state, agent_name):
-        goal_state = self.agent_dict[agent_name]["goal"]
+    def is_at_goal(self, state, name):
+        goal_state = self.agent_dict[name]["goal"]
         return state.is_equal_except_time(goal_state)
 
     def make_agent_dict(self):
@@ -223,8 +223,8 @@ class Environment(object):
     def compute_solution(self):
         solution = {}
         for agent in self.agent_dict.keys():
-            self.constraints = self.constraint_dict.setdefault(agent, Constraints())
-            local_solution = self.a_star.search(agent)
+            self.constraints = self.constraint.setdefault(agent, Constraints())
+            local_solution = self.a_star.find(agent)
             if not local_solution:
                 return False
             solution.update({agent:local_solution})
@@ -236,7 +236,7 @@ class Environment(object):
 class HighLevelNode(object):
     def __init__(self):
         self.solution = {}
-        self.constraint_dict = {}
+        self.constraint = {}
         self.cost = 0
 
     def __eq__(self, other):
@@ -254,12 +254,12 @@ class CBS(object):
         self.env = environment
         self.open_set = set()
         self.closed_set = set()
-    def search(self):
+    def find(self):
         start = HighLevelNode()
         # TODO: Initialize it in a better way
-        start.constraint_dict = {}
+        start.constraint = {}
         for agent in self.env.agent_dict.keys():
-            start.constraint_dict[agent] = Constraints()
+            start.constraint[agent] = Constraints()
         start.solution = self.env.compute_solution()
         if not start.solution:
             return {}
@@ -272,7 +272,7 @@ class CBS(object):
             self.open_set -= {P}
             self.closed_set |= {P}
 
-            self.env.constraint_dict = P.constraint_dict
+            self.env.constraint = P.constraint
             conflict_dict={}
            
             if not conflict_dict:
@@ -280,13 +280,13 @@ class CBS(object):
 
                 return self.generate_plan(P.solution)
 
-            constraint_dict = self.env.create_constraints_from_conflict(conflict_dict)
+            constraint = self.env.create_constraints(conflict_dict)
 
-            for agent in constraint_dict.keys():
+            for agent in constraint.keys():
                 new_node = deepcopy(P)
-                new_node.constraint_dict[agent].add_constraint(constraint_dict[agent])
+                new_node.constraint[agent].add_constraint(constraint[agent])
 
-                self.env.constraint_dict = new_node.constraint_dict
+                self.env.constraint = new_node.constraint
                 new_node.solution = self.env.compute_solution()
                 if not new_node.solution:
                     continue
@@ -308,8 +308,8 @@ class CBS(object):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("param", help="input file containing map and obstacles")
-    parser.add_argument("output", help="output file with the schedule")
+    parser.add_argument("param", help="Input file containing map and obstacles")
+    parser.add_argument("output", help="Output file with the schedule")
     args = parser.parse_args()
 
     # Read from input file
@@ -326,19 +326,19 @@ def main():
     #print(agents)
 
     new_agents = []
-    agent_name = []
+    name = []
     remaining_agents=[]
-    agent_time = {}
+    agent_t = {}
     time = 0
     k=1
 
     while len(agents)>0:
         for agent in agents:
-            if agent['name'] not in agent_name:
+            if agent['name'] not in name:
                 new_agents.append(agent)
-                agent_name.append(agent['name'])
-                if agent['name'] not in agent_time:
-                    agent_time[agent['name']]=0
+                name.append(agent['name'])
+                if agent['name'] not in agent_t:
+                    agent_t[agent['name']]=0
             else:
                 remaining_agents.append(agent)
 
@@ -348,14 +348,14 @@ def main():
         print("working")
 
         print(new_agents)
-        print(agent_name)
+        print(name)
         print(agents)
 
-        env = Environment(dimension, new_agents, obstacles,agent_time)
+        env = Environment(dimension, new_agents, obstacles,agent_t)
 
-        # Searching
+        # finding
         cbs = CBS(env)
-        solution = cbs.search()
+        solution = cbs.find()
 	print(solution)
         if not solution:
             print(" Solution not found" )
@@ -375,7 +375,7 @@ def main():
         time = time+output["cost"]
 
         for agent_end in output["schedule"]:
-            agent_time[agent_end]=output["schedule"][agent_end][-1]['t']
+            agent_t[agent_end]=output["schedule"][agent_end][-1]['t']
 
         
         print(output)
@@ -393,7 +393,7 @@ def main():
                 yaml.safe_dump(revised_output, output_yaml)
 
 	del(new_agents[:])
-	del(agent_name[:])
+	del(name[:])
 	del(remaining_agents[:])
         k+=1
 
