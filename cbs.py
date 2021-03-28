@@ -103,7 +103,7 @@ class Environment(object):
 
         self.a_star = AStar(self)
 
-    def get_neighbors(self, state):
+    def find_neighbors(self, state):
         neighbors = []
 
         # Wait action
@@ -129,7 +129,7 @@ class Environment(object):
         return neighbors
 
 
-    def get_first_conflict(self, solution):
+    def first_conflict(self, solution):
         max_t = max([len(plan) for plan in solution.values()])
         result = Conflict()
         for t in range(max_t):
@@ -274,7 +274,7 @@ class CBS(object):
 
             self.env.constraint_dict = P.constraint_dict
             conflict_dict={}
-            #conflict_dict = self.env.get_first_conflict(P.solution)
+           
             if not conflict_dict:
                 print("solution found")
 

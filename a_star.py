@@ -1,8 +1,5 @@
 """
-
-AStar best first search
-
-
+AStar Best First Search
 """
 
 class AStar():
@@ -10,7 +7,7 @@ class AStar():
         self.agent_dict = env.agent_dict
         self.admissible_heuristic = env.admissible_heuristic
         self.is_at_goal = env.is_at_goal
-        self.get_neighbors = env.get_neighbors
+        self.find_neighbors = env.find_neighbors
 
     def reconstruct_path(self, came_from, current):
         total_path = [current]
@@ -48,7 +45,7 @@ class AStar():
             open_set -= {current}
             closed_set |= {current}
 
-            neighbor_list = self.get_neighbors(current)
+            neighbor_list = self.find_neighbors(current)
 
             for neighbor in neighbor_list:
                 if neighbor in closed_set:
